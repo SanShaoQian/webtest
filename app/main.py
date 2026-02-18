@@ -29,7 +29,11 @@ def create_app() -> Flask:
     max_upload_mb = int(os.getenv("MAX_UPLOAD_MB", "16"))
     max_upload_bytes = max_upload_mb * 1024 * 1024
 
-    app = Flask(__name__)
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    template_dir = os.path.join(app_root, "..", "templates")
+    static_dir = os.path.join(app_root, "..", "static")
+
+    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config["MAX_CONTENT_LENGTH"] = max_upload_bytes
 
     @app.get("/")
