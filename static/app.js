@@ -15,6 +15,19 @@ function setStatus(message, type = "") {
   statusEl.className = `status ${type}`.trim();
 }
 
+async function parseApiResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return await response.json();
+  }
+
+  const text = await response.text();
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 200);
+  return {
+    error: `Server returned non-JSON response (${response.status}). ${snippet}`,
+  };
+}
+
 function renderStats(stats) {
   const items = [
     ["Malicious", stats.malicious],
@@ -74,7 +87,7 @@ form.addEventListener("submit", async (event) => {
       method: "POST",
       body: data,
     });
-    const payload = await response.json();
+    const payload = await parseApiResponse(response);
 
     if (!response.ok) {
       throw new Error(payload.error || "Scan failed");
@@ -108,7 +121,7 @@ explainBtn.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ summary: latestSummary }),
     });
-    const payload = await response.json();
+    const payload = await parseApiResponse(response);
 
     if (!response.ok) {
       throw new Error(payload.error || "Explanation failed");

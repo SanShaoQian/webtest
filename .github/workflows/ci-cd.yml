@@ -84,15 +84,22 @@ jobs:
         run: |
           PORT="${EC2_PORT:-22}"
           TARGET_DIR="${APP_DIR:-/home/ubuntu/webtest}"
-          ssh -p "$PORT" -i ~/.ssh/id_ed25519 "${EC2_USER}@${EC2_HOST}" <<EOF
-          set -e
+          ssh -T -p "$PORT" -i ~/.ssh/id_ed25519 -o BatchMode=yes "${EC2_USER}@${EC2_HOST}" "bash -s" <<EOF
+          set -euo pipefail
           cd "${TARGET_DIR}"
           python3 -m venv .venv
           . .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          sudo systemctl daemon-reload
-          sudo systemctl restart webtest
+          python -m py_compile app/__init__.py app/main.py app/virustotal.py app/genai.py run.py
+          sudo systemctl reset-failed webtest || true
+          if ! sudo systemctl restart webtest; then
+            sudo systemctl --no-pager --full status webtest || true
+            sudo journalctl -u webtest -n 200 --no-pager || true
+            exit 1
+          fi
           sudo systemctl restart nginx
+          curl -fsS http://127.0.0.1:8000/health >/dev/null
+          curl -fsS http://127.0.0.1/health >/dev/null
           sudo systemctl --no-pager --full status webtest
           EOF
