@@ -22,7 +22,23 @@ async function parseApiResponse(response) {
   }
 
   const text = await response.text();
-  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (response.status === 413) {
+    return {
+      error: "File is too large. Please upload a smaller file.",
+    };
+  }
+  if (response.status === 504) {
+    return {
+      error:
+        "Scan timed out while waiting for upstream services. Try a smaller file or retry in a moment.",
+    };
+  }
+  if (response.status === 502) {
+    return {
+      error: "Server is temporarily unavailable. Please retry shortly.",
+    };
+  }
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 180);
   return {
     error: `Server returned non-JSON response (${response.status}). ${snippet}`,
   };

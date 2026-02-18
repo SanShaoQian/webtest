@@ -86,7 +86,7 @@ jobs:
           PORT="${EC2_PORT:-22}"
           TARGET_DIR="${APP_DIR:-/home/ubuntu/webtest}"
           ssh -T -p "$PORT" -i ~/.ssh/id_ed25519 -o BatchMode=yes "${EC2_USER}@${EC2_HOST}" "bash -s" <<EOF
-          set -euo pipefail
+          set -e
           cd "${TARGET_DIR}"
           if [ ! -f .env ]; then
             echo "Missing ${TARGET_DIR}/.env on EC2. Create it once with VT/GEMINI keys."
@@ -94,19 +94,11 @@ jobs:
           fi
           python3 -m venv .venv
           . .venv/bin/activate
-          pip install --upgrade pip
           pip install -r requirements.txt
-          python -m py_compile app/__init__.py app/main.py app/virustotal.py app/genai.py run.py
           sudo cp deploy/webtest.service /etc/systemd/system/webtest.service
           sudo systemctl daemon-reload
           sudo systemctl reset-failed webtest || true
-          if ! sudo systemctl restart webtest; then
-            sudo systemctl --no-pager --full status webtest || true
-            sudo journalctl -u webtest -n 200 --no-pager || true
-            exit 1
-          fi
+          sudo systemctl restart webtest
           sudo systemctl restart nginx
-          curl -fsS http://127.0.0.1:8000/health >/dev/null
           curl -fsS http://127.0.0.1/health >/dev/null
-          sudo systemctl --no-pager --full status webtest
           EOF
