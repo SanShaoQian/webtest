@@ -7,7 +7,7 @@ User=ubuntu
 Group=www-data
 WorkingDirectory=/home/ubuntu/webtest
 EnvironmentFile=/home/ubuntu/webtest/.env
-ExecStart=/home/ubuntu/webtest/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8000 app:app
+ExecStart=/home/ubuntu/webtest/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8000 --timeout 180 --graceful-timeout 30 app:app
 Restart=always
 
 [Install]

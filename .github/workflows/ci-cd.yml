@@ -70,6 +70,7 @@ jobs:
           rsync -az --delete \
             --exclude ".git/" \
             --exclude ".venv/" \
+            --exclude ".env" \
             --exclude "__pycache__/" \
             --exclude "*.pyc" \
             -e "ssh -p $PORT -i ~/.ssh/id_ed25519" \
@@ -87,11 +88,17 @@ jobs:
           ssh -T -p "$PORT" -i ~/.ssh/id_ed25519 -o BatchMode=yes "${EC2_USER}@${EC2_HOST}" "bash -s" <<EOF
           set -euo pipefail
           cd "${TARGET_DIR}"
+          if [ ! -f .env ]; then
+            echo "Missing ${TARGET_DIR}/.env on EC2. Create it once with VT/GEMINI keys."
+            exit 1
+          fi
           python3 -m venv .venv
           . .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
           python -m py_compile app/__init__.py app/main.py app/virustotal.py app/genai.py run.py
+          sudo cp deploy/webtest.service /etc/systemd/system/webtest.service
+          sudo systemctl daemon-reload
           sudo systemctl reset-failed webtest || true
           if ! sudo systemctl restart webtest; then
             sudo systemctl --no-pager --full status webtest || true
