@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CloudsineAI WebTest</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>File Malware Scanner</h1>
+      <p class="subtitle">Upload a file, scan with VirusTotal, then get a plain-English explanation with Gemini.</p>
+
+      <form id="scan-form">
+        <label for="file-input">Select file (max {{ max_upload_mb }} MB)</label>
+        <input id="file-input" name="file" type="file" required />
+        <button id="scan-btn" type="submit">Scan File</button>
+      </form>
+
+      <section id="status" class="status" aria-live="polite"></section>
+
+      <section id="results" class="card hidden">
+        <h2>Scan Results</h2>
+        <div id="stats" class="stats"></div>
+        <h3>Malicious Detections</h3>
+        <div id="detections"></div>
+        <button id="explain-btn" type="button">Explain in Plain English</button>
+      </section>
+
+      <section id="explanation" class="card hidden">
+        <h2>GenAI Explanation</h2>
+        <pre id="explanation-text"></pre>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
+
