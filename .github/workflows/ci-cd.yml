@@ -1,0 +1,92 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile check
+        run: |
+          python -m py_compile app/__init__.py app/main.py app/virustotal.py app/genai.py run.py
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf "%s" "$EC2_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Add EC2 host key
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+        run: |
+          PORT="${EC2_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync repo to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+          APP_DIR: ${{ secrets.EC2_APP_DIR }}
+        run: |
+          PORT="${EC2_PORT:-22}"
+          TARGET_DIR="${APP_DIR:-/home/ubuntu/webtest}"
+          rsync -az --delete \
+            --exclude ".git/" \
+            --exclude ".venv/" \
+            --exclude "__pycache__/" \
+            --exclude "*.pyc" \
+            -e "ssh -p $PORT -i ~/.ssh/id_ed25519" \
+            ./ "${EC2_USER}@${EC2_HOST}:${TARGET_DIR}/"
+
+      - name: Restart application on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+          APP_DIR: ${{ secrets.EC2_APP_DIR }}
+        run: |
+          PORT="${EC2_PORT:-22}"
+          TARGET_DIR="${APP_DIR:-/home/ubuntu/webtest}"
+          ssh -p "$PORT" -i ~/.ssh/id_ed25519 "${EC2_USER}@${EC2_HOST}" <<EOF
+          set -e
+          cd "${TARGET_DIR}"
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          sudo systemctl daemon-reload
+          sudo systemctl restart webtest
+          sudo systemctl restart nginx
+          sudo systemctl --no-pager --full status webtest
+          EOF

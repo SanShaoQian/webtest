@@ -94,3 +94,27 @@ Use files under `files/` in the web UI and verify:
 - malicious engine detections are listed,
 - explanation button returns a plain-English summary.
 
+## GitHub Actions CI/CD
+This repo includes `.github/workflows/ci-cd.yml` with:
+- CI on pull requests and pushes to `main` (dependency install + Python compile check)
+- CD on pushes to `main` (sync repo to EC2, install deps, restart services)
+
+### Required GitHub repository secrets
+Add these in GitHub: `Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`.
+
+- `EC2_HOST`: your server IP (example: `3.107.114.111`)
+- `EC2_USER`: SSH user (for your setup: `ubuntu`)
+- `EC2_SSH_KEY`: private SSH key content used to access EC2
+- `EC2_PORT`: optional, default is `22`
+- `EC2_APP_DIR`: optional, default is `/home/ubuntu/webtest`
+
+### One-time EC2 prerequisites
+1. Ensure `webtest` systemd service exists and works manually first.
+2. Ensure nginx config is already set up (`deploy/nginx-webtest.conf`).
+3. Ensure `.env` with `VT_API_KEY` and `GEMINI_API_KEY` exists on EC2 at `/home/ubuntu/webtest/.env`.
+4. Ensure `ubuntu` can run `sudo systemctl restart webtest` and `sudo systemctl restart nginx` non-interactively.
+
+### Triggering deployment
+- Merge/push to `main` branch.
+- Open GitHub `Actions` tab and watch `CI/CD` workflow logs.
+- On success, app is redeployed and services are restarted on EC2.
