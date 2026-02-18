@@ -116,7 +116,11 @@ explainBtn.addEventListener("click", async () => {
 
     explanationTextEl.textContent = payload.explanation;
     explanationEl.classList.remove("hidden");
-    setStatus("Explanation ready.", "ok");
+    if (payload.warning) {
+      setStatus(payload.warning);
+    } else {
+      setStatus("Explanation ready.", "ok");
+    }
   } catch (error) {
     setStatus(error.message, "error");
   } finally {

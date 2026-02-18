@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
-from .genai import GenAIError, from_env as gemini_from_env
+from .genai import GenAIError, GenAIQuotaError, build_fallback_explanation, from_env as gemini_from_env
 from .virustotal import VirusTotalError, from_env as vt_from_env
 
 ALLOWED_EXTENSIONS = {
@@ -102,12 +102,27 @@ def create_app() -> Flask:
         try:
             gemini_client = gemini_from_env()
             explanation = gemini_client.explain(summary)
+        except GenAIQuotaError as exc:
+            fallback_explanation = build_fallback_explanation(summary)
+            warning = "Gemini quota is currently exceeded. Showing fallback explanation instead."
+            if exc.retry_after_seconds:
+                warning = f"Gemini quota is currently exceeded. Try again in about {exc.retry_after_seconds} seconds. Showing fallback explanation instead."
+            return (
+                jsonify(
+                    {
+                        "explanation": fallback_explanation,
+                        "source": "fallback",
+                        "warning": warning,
+                    }
+                ),
+                HTTPStatus.OK,
+            )
         except GenAIError as exc:
             return jsonify({"error": str(exc)}), HTTPStatus.BAD_GATEWAY
         except Exception:
             return jsonify({"error": "Unexpected server error while generating explanation"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-        return jsonify({"explanation": explanation}), HTTPStatus.OK
+        return jsonify({"explanation": explanation, "source": "gemini"}), HTTPStatus.OK
 
     @app.errorhandler(413)
     def request_too_large(_error):
