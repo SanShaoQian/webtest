@@ -59,16 +59,20 @@ def build_fallback_explanation(summary: Dict[str, Any]) -> str:
 
 
 class GeminiClient:
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
         self.api_key = api_key
         self.model = model
 
     def explain(self, summary: Dict[str, Any]) -> str:
         prompt = (
-            "Explain this malware scan result for a non-technical person. "
-            "Be concise, clear, and practical. Include whether they should be worried and next steps.\n\n"
+            "You explain malware scan results to non-technical users.\n"
+            "Output plain text only.\n"
+            "Do not use markdown symbols (#, *, -, _, `), headings, bullet points, or numbered lists.\n"
+            "Write 3-5 short sentences in normal prose.\n"
+            "Include: risk level, what it means, and one clear next step.\n\n"
             f"Scan summary: {summary}"
         )
+
 
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent",
@@ -113,6 +117,6 @@ def from_env() -> GeminiClient:
     if not api_key:
         raise GenAIError("Missing GEMINI_API_KEY environment variable")
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
     return GeminiClient(api_key=api_key, model=model)
 
