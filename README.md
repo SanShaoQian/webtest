@@ -1,4 +1,4 @@
-﻿# CloudsineAI WebTest Solution
+# CloudsineAI WebTest Solution
 
 This repository now contains a complete Flask web app that:
 - uploads files from a browser,
@@ -73,7 +73,8 @@ cp .env.example .env
 ```
 3. Configure systemd:
 ```bash
-sudo cp deploy/webtest.service /etc/systemd/system/webtest.service
+APP_DIR=/home/ubuntu/webtest
+sudo sed "s|/home/ubuntu/webtest|$APP_DIR|g" deploy/webtest.service | sudo tee /etc/systemd/system/webtest.service >/dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable webtest
 sudo systemctl start webtest
@@ -109,9 +110,9 @@ Add these in GitHub: `Settings` -> `Secrets and variables` -> `Actions` -> `New 
 - `EC2_APP_DIR`: optional, default is `/home/ubuntu/webtest`
 
 ### One-time EC2 prerequisites
-1. Ensure `webtest` systemd service exists and works manually first.
+1. Ensure your service `WorkingDirectory` / `EnvironmentFile` / `ExecStart` paths match `EC2_APP_DIR` (default `/home/ubuntu/webtest`).
 2. Ensure nginx config is already set up (`deploy/nginx-webtest.conf`).
-3. Ensure `.env` with `VT_API_KEY` and `GEMINI_API_KEY` exists on EC2 at `/home/ubuntu/webtest/.env`.
+3. Ensure `.env` with `VT_API_KEY` and `GEMINI_API_KEY` exists on EC2 at `${EC2_APP_DIR:-/home/ubuntu/webtest}/.env`.
 4. Ensure `ubuntu` can run `sudo systemctl restart webtest` and `sudo systemctl restart nginx` non-interactively.
 
 ### Triggering deployment

@@ -95,7 +95,7 @@ jobs:
           python3 -m venv .venv
           . .venv/bin/activate
           pip install -r requirements.txt
-          sudo cp deploy/webtest.service /etc/systemd/system/webtest.service
+          sudo sed "s|/home/ubuntu/webtest|${TARGET_DIR}|g" deploy/webtest.service | sudo tee /etc/systemd/system/webtest.service >/dev/null
           sudo cp deploy/nginx-webtest.conf /etc/nginx/sites-available/webtest
           if [ ! -L /etc/nginx/sites-enabled/webtest ]; then
             sudo ln -s /etc/nginx/sites-available/webtest /etc/nginx/sites-enabled/webtest
@@ -103,8 +103,21 @@ jobs:
           sudo systemctl daemon-reload
           sudo systemctl reset-failed webtest || true
           sudo systemctl restart webtest
-          sudo systemctl is-active --quiet webtest
-          curl -fsS http://127.0.0.1:8000/health >/dev/null
+
+          # Wait for gunicorn to bind on 127.0.0.1:8000
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+            sudo systemctl status webtest --no-pager -l || true
+            sudo journalctl -u webtest -n 100 --no-pager || true
+            exit 1
+          fi
+
           sudo nginx -t
           sudo systemctl reload nginx
           curl -fsS http://127.0.0.1/health >/dev/null
